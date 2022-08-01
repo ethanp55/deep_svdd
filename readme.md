@@ -1,0 +1,1 @@
+Tensorflow implementation of the Deep SVDD algorithm as described in the paper "Deep One-Class Classification" (http://proceedings.mlr.press/v80/ruff18a/ruff18a.pdf).
