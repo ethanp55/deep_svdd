@@ -77,5 +77,5 @@ for data_dir in sorted(os.listdir('data/')):
     model.add(keras.layers.Dense(REPRESENTATION_DIM, use_bias=False))
 
     # Train and test - the model, center, and radius will be saved throughout the training process
-    svdd = DeepSVDD(model, representation_dim=REPRESENTATION_DIM, objective=Objectives.ONE_CLASS)
+    svdd = DeepSVDD(model, representation_dim=REPRESENTATION_DIM, objective=Objectives.SOFT_BOUNDARY)
     svdd.fit(x_train, x_test, y_test, data_dir, n_epochs=50, verbose=True)
