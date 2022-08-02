@@ -2,6 +2,7 @@ import enum
 import tensorflow as tf
 import numpy as np
 from math import ceil
+import pickle
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
@@ -49,13 +50,16 @@ class DeepSVDD:
 
         return loss, dist
 
-    def fit(self, x, x_test, y_test, n_epochs=10, verbose=True):
+    def fit(self, x, x_test, y_test, name, n_epochs=10, verbose=True):
         # Get training set size and number of batches
         n = x.shape[0]
         num_batches = int(ceil(n / self.batch_size))
 
         # Calculate the center c variable
         self._init_c(x)
+
+        # Initialize variable to keep track of best loss - used to save the model as training occurs
+        best_test_auc = -np.inf
 
         # Iterate through epochs
         for epoch in range(n_epochs):
@@ -76,11 +80,21 @@ class DeepSVDD:
                 if self.objective == Objectives.SOFT_BOUNDARY and epoch >= self.k:
                     self.r.assign(np.quantile(np.sqrt(dist), 1 - self.nu))
 
+            # Check ROC AUC score on test set - save the model if the results improved from any previous epochs
+            pred = self.predict(x_test)
+            auc = roc_auc_score(y_test, -pred)
+
+            if auc > best_test_auc:
+                if verbose:
+                    print(f'Saving model with ROC AUC score {auc}')
+
+                best_test_auc = auc
+                self._save_model(name)
+
+            # Print the epoch info
             if verbose:
                 print(f'Epoch {epoch + 1} complete, total loss = {epoch_loss}, avg loss = {epoch_loss / n} -- Test '
                       f'results:')
-                pred = self.predict(x_test)
-                auc = roc_auc_score(y_test, -pred)
                 print(f'ROC AUC score = {auc}')
 
     def predict(self, x):
@@ -126,3 +140,15 @@ class DeepSVDD:
         new_c[np.where(np.equal(True, (abs(c) < eps) & (c > 0)))] = eps
 
         self.c.assign(new_c)
+
+    def _save_model(self, name):
+        # Save the center and radius parameters
+        with open(f'saved_models/{name}_c.pickle', 'wb') as f:
+            pickle.dump(self.c, f)
+
+        with open(f'saved_models/{name}_r.pickle', 'wb') as f:
+            pickle.dump(self.r, f)
+
+        # Save the actual model
+        self.model.save(f'saved_models/{name}_model')
+

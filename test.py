@@ -1,7 +1,6 @@
 from deepsvdd import DeepSVDD, Objectives
 import numpy as np
 from sklearn.metrics import roc_auc_score
-import tensorflow as tf
 from tensorflow import keras
 
 
@@ -38,9 +37,8 @@ model.add(keras.layers.Dense(REPRESENTATION_DIM, use_bias=False))
 
 
 # Train and test
-tf.compat.v1.reset_default_graph()
 svdd = DeepSVDD(model, representation_dim=REPRESENTATION_DIM, objective=Objectives.ONE_CLASS)
-svdd.fit(x_train, x_test, y_test, n_epochs=50, verbose=True)
+svdd.fit(x_train, x_test, y_test, 'mnist_test', n_epochs=50, verbose=True)
 score = svdd.predict(x_test)
 auc = roc_auc_score(y_test, -score)
 print(f'Final ROC AUC score = {auc}')
