@@ -4,6 +4,7 @@ import numpy as np
 from math import ceil
 import pickle
 from sklearn.metrics import roc_auc_score
+from tensorflow.keras.models import load_model
 from tqdm import tqdm
 
 
@@ -14,18 +15,27 @@ class Objectives(enum.Enum):
 
 class DeepSVDD:
     def __init__(self, model, objective=Objectives.ONE_CLASS, nu=0.1, representation_dim=32, batch_size=128,
-                 lr=0.001, k=10):
+                 lr=0.001, k=10, file_path=None):
         # Set up different variables we need
         self.representation_dim = representation_dim
         self.objective = objective
-        self.model = model
         self.nu = nu
         initializer = tf.keras.initializers.GlorotUniform()
         r_shape, c_shape = [], [self.representation_dim]
-        self.r = tf.Variable(name='r', shape=r_shape, dtype=tf.float32, trainable=False, initial_value=initializer(shape=r_shape))
-        self.c = tf.Variable(name='c', shape=c_shape, dtype=tf.float32, trainable=False, initial_value=initializer(shape=c_shape))
         self.k = k
         self.batch_size = batch_size
+
+        if file_path is None:
+            self.model = model
+            self.r = tf.Variable(name='r', shape=r_shape, dtype=tf.float32, trainable=False,
+                                 initial_value=initializer(shape=r_shape))
+            self.c = tf.Variable(name='c', shape=c_shape, dtype=tf.float32, trainable=False,
+                                 initial_value=initializer(shape=c_shape))
+
+        else:
+            self.model = load_model(f'{file_path}_model')
+            self.r = pickle.load(open(f'{file_path}_r.pickle', 'rb'))
+            self.c = pickle.load(open(f'{file_path}_c.pickle', 'rb'))
 
         # Create optimizer
         self.opt = tf.keras.optimizers.Adam(lr)

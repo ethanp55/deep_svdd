@@ -18,8 +18,8 @@ REPRESENTATION_DIM = 32
 
 # Grab the data and train a network for each data directory
 for data_dir in sorted(os.listdir('data/')):
-    # Skip any hidden directories
-    if '.' in data_dir:
+    # Skip any hidden or feature data directories
+    if '.' in data_dir or 'feature' in data_dir:
         continue
 
     # Initialize different data arrays we need
@@ -31,9 +31,9 @@ for data_dir in sorted(os.listdir('data/')):
         name = file_name.split('.')[0]
         df = pd.read_csv(f'data/{data_dir}/{file_name}', header=None)
 
-        for i in range(len(df)):
+        for j in range(len(df)):
             # Convert each row of data into an "image"
-            image_data = grab_image_data(np.array(df.iloc[i, :]).reshape(1, -1))
+            image_data = grab_image_data(np.array(df.iloc[j, :]).reshape(1, -1))
 
             # Build up the data arrays
             if 'normal' and 'train' in name:
