@@ -19,7 +19,7 @@ REPRESENTATION_DIM = 32
 # Grab the data and train a network for each data directory
 for data_dir in sorted(os.listdir('data/')):
     # Skip any hidden or feature data directories
-    if '.' in data_dir or 'feature' in data_dir:
+    if '.' in data_dir or 'feature' in data_dir or data_dir == 'navigation_2':
         continue
 
     # Initialize different data arrays we need
