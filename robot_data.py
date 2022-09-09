@@ -1,20 +1,10 @@
-from deepsvdd import DeepSVDD, Objectives
+from deepsvdd import DeepSVDD, Objectives, roc_auc_score
 import numpy as np
 import os
 import pandas as pd
-from pyts.image import GramianAngularField
 from tensorflow import keras
+from utils import grab_image_data, ALL_COMBOS, PERCENTAGE_TO_TRY
 
-
-# Function that converts a single row of data into an "image"
-def grab_image_data(subset):
-    gasf_transformer = GramianAngularField(method='summation')
-    gasf_subset = gasf_transformer.transform(subset)
-
-    return gasf_subset
-
-
-REPRESENTATION_DIM = 32
 
 # Grab the data and train a network for each data directory
 for data_dir in sorted(os.listdir('data/')):
@@ -42,7 +32,7 @@ for data_dir in sorted(os.listdir('data/')):
             else:
                 x_test.append(image_data)
 
-                label = 0.0 if 'abnormal' in name else 1.0
+                label = 0.0 if 'ab' in name else 1.0
                 y_test.append(label)
 
     # Format the data arrays to make sure they have the proper shape and type
@@ -60,22 +50,38 @@ for data_dir in sorted(os.listdir('data/')):
     if len(x_train) == 0 or len(x_test) == 0 or len(y_test) == 0 or len(x_test) != len(y_test):
         raise Exception('Could not find data for training and/or testing')
 
-    # Initialize the network - same one the Deep SVDD authors used on the MNIST dataset
-    model = keras.models.Sequential()
+    # Set up different hyperparameters to test - we will select the best one
+    best_params, best_auc = None, -np.inf
+    np.random.shuffle(ALL_COMBOS)
+    possible_combos = ALL_COMBOS[:int(PERCENTAGE_TO_TRY * len(ALL_COMBOS))]
 
-    model.add(keras.layers.Conv2D(8, (5, 5), padding='same', use_bias=False, input_shape=x_train.shape[1:]))
-    model.add(keras.layers.LeakyReLU(1e-2))
-    model.add(keras.layers.BatchNormalization(epsilon=1e-4, trainable=False))
-    model.add(keras.layers.MaxPool2D())
+    for nu, rep_dim, k, lr in possible_combos:
+        # Initialize the network - same one the Deep SVDD authors used on the MNIST dataset
+        model = keras.models.Sequential()
 
-    model.add(keras.layers.Conv2D(4, (5, 5), padding='same', use_bias=False))
-    model.add(keras.layers.LeakyReLU(1e-2))
-    model.add(keras.layers.BatchNormalization(epsilon=1e-4, trainable=False))
-    model.add(keras.layers.MaxPool2D())
+        model.add(keras.layers.Conv2D(8, (5, 5), padding='same', use_bias=False, input_shape=x_train.shape[1:]))
+        model.add(keras.layers.LeakyReLU(1e-2))
+        model.add(keras.layers.BatchNormalization(epsilon=1e-4, trainable=False))
+        model.add(keras.layers.MaxPool2D())
 
-    model.add(keras.layers.Flatten())
-    model.add(keras.layers.Dense(REPRESENTATION_DIM, use_bias=False))
+        model.add(keras.layers.Conv2D(4, (5, 5), padding='same', use_bias=False))
+        model.add(keras.layers.LeakyReLU(1e-2))
+        model.add(keras.layers.BatchNormalization(epsilon=1e-4, trainable=False))
+        model.add(keras.layers.MaxPool2D())
 
-    # Train and test - the model, center, and radius will be saved throughout the training process
-    svdd = DeepSVDD(model, representation_dim=REPRESENTATION_DIM, objective=Objectives.SOFT_BOUNDARY)
-    svdd.fit(x_train, x_test, y_test, data_dir, n_epochs=50, verbose=True)
+        model.add(keras.layers.Flatten())
+        model.add(keras.layers.Dense(rep_dim, use_bias=False))
+
+        # Train and test - the model, center, and radius will be saved throughout the training process
+        svdd = DeepSVDD(model, representation_dim=rep_dim, objective=Objectives.SOFT_BOUNDARY, nu=nu, lr=lr, k=k)
+        svdd.fit(x_train, x_test, y_test, data_dir, n_epochs=50, verbose=True)
+
+        pred = svdd.predict(x_test)
+        auc = roc_auc_score(y_test, -pred)
+
+        if auc > best_auc:
+            best_params, best_auc = (nu, rep_dim, k, lr), auc
+
+    print(f'Best params: {best_params}')
+    print(f'Best AUC: {best_auc}')
+

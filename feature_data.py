@@ -3,15 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
-from pyts.image import GramianAngularField
-
-
-# Function that converts a single row of data into an "image"
-def grab_image_data(subset):
-    gasf_transformer = GramianAngularField(method='summation')
-    gasf_subset = gasf_transformer.transform(subset)
-
-    return gasf_subset
+from utils import grab_image_data
 
 
 REPRESENTATION_DIM = 32
